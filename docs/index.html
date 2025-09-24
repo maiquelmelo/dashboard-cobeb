@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dashboard Cobeb - Boletos</title>
+
+  <!-- DataTables CSS -->
+  <link rel="stylesheet" href="https://cdn.datatables.net/v/dt/dt-2.1.8/b-3.2.0/r-3.0.3/datatables.min.css"/>
+
+  <!-- Ícones -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"/>
+
+  <!-- Estilos próprios -->
+  <link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
+  <header class="topbar">
+    <h1>Dashboard Cobeb — Emissão & Liquidação de Boletos</h1>
+  </header>
+
+  <main class="container">
+    <!-- Importador + Validador -->
+    <section class="import card">
+      <h3><i class="fa-solid fa-file-import"></i> Importar nova base (Excel .xlsx ou CSV)</h3>
+      <p>Carregue uma planilha no padrão da base original. O sistema valida o cabeçalho e os campos numéricos antes de aplicar.</p>
+      <div class="import-controls">
+        <input id="fileInput" type="file" accept=".xlsx,.csv" />
+        <button id="btnUseFile" class="btn" disabled><i class="fa-solid fa-play"></i> Usar base carregada</button>
+        <button id="btnDownloadCSV" class="btn" disabled><i class="fa-solid fa-download"></i> Baixar CSV normalizado</button>
+        <button id="btnRestore" class="btn btn-outline"><i class="fa-solid fa-rotate-left"></i> Restaurar base padrão</button>
+      </div>
+      <div id="validationBox" class="validation-box">
+        <div id="validationSummary" class="muted"></div>
+        <ul id="validationList"></ul>
+      </div>
+    </section>
+
+    <!-- KPIs -->
+    <section class="kpis">
+      <div class="kpi">
+        <div class="kpi-label">Valor Emitido</div>
+        <div id="kpiValorEmitido" class="kpi-value">—</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Valor Liquidado</div>
+        <div id="kpiValorLiquidado" class="kpi-value">—</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Taxa de Liquidação</div>
+        <div id="kpiTaxa" class="kpi-value">—</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Boletos (Qtd) E/L</div>
+        <div id="kpiQtd" class="kpi-value">—</div>
+      </div>
+    </section>
+
+    <!-- Filtros básicos -->
+    <section class="filters">
+      <div class="filter">
+        <label for="fEmpresa"><i class="fa-solid fa-building"></i> Empresa</label>
+        <select id="fEmpresa"><option value="">Todas</option></select>
+      </div>
+      <div class="filter">
+        <label for="fCNPJ"><i class="fa-regular fa-id-card"></i> CNPJ</label>
+        <select id="fCNPJ"><option value="">Todos</option></select>
+      </div>
+      <div class="filter">
+        <label for="fConta"><i class="fa-solid fa-hashtag"></i> Conta</label>
+        <select id="fConta"><option value="">Todas</option></select>
+      </div>
+      <div class="filter grow">
+        <label for="globalSearch"><i class="fa-solid fa-magnifying-glass"></i> Busca (Conta/Empresa/CNPJ)</label>
+        <input id="globalSearch" type="search" placeholder="Digite para filtrar..." />
+      </div>
+      <div class="filter">
+        <button id="btnLimpar" class="btn"><i class="fa-solid fa-eraser"></i> Limpar</button>
+      </div>
+    </section>
+
+    <!-- Filtros avançados -->
+    <section class="filters adv card">
+      <div class="row">
+        <div class="filter">
+          <label for="minValorEmit">Valor Emitido (mín)</label>
+          <input id="minValorEmit" type="number" placeholder="0" />
+        </div>
+        <div class="filter">
+          <label for="maxValorEmit">Valor Emitido (máx)</label>
+          <input id="maxValorEmit" type="number" placeholder="∞" />
+        </div>
+        <div class="filter">
+          <label for="minValorLiq">Valor Liquidado (mín)</label>
+          <input id="minValorLiq" type="number" placeholder="0" />
+        </div>
+        <div class="filter">
+          <label for="maxValorLiq">Valor Liquidado (máx)</label>
+          <input id="maxValorLiq" type="number" placeholder="∞" />
+        </div>
+        <div class="filter">
+          <label for="topN">Top N empresas (por liquidado)</label>
+          <input id="topN" type="number" min="1" placeholder="Ex.: 10" />
+        </div>
+      </div>
+      <div class="row" id="dateFilters" style="display:none;">
+        <div class="filter">
+          <label for="fDataIni">Data inicial</label>
+          <input id="fDataIni" type="date" />
+        </div>
+        <div class="filter">
+          <label for="fDataFim">Data final</label>
+          <input id="fDataFim" type="date" />
+        </div>
+      </div>
+      <div class="row">
+        <button id="btnAplicarAvancados" class="btn"><i class="fa-solid fa-filter"></i> Aplicar filtros avançados</button>
+      </div>
+    </section>
+
+    <!-- Gráficos -->
+    <section class="charts">
+      <div class="card">
+        <h3>Emitidos x Liquidados por Empresa</h3>
+        <div class="chart-box"><canvas id="barChart"></canvas></div>
+      </div>
+      <div class="card">
+        <h3>Participação por Valor Liquidado</h3>
+        <div class="chart-box"><canvas id="pieChart"></canvas></div>
+      </div>
+    </section>
+
+    <!-- Tabela -->
+    <section class="table-section card">
+      <div class="table-actions">
+        <h3>Registros</h3>
+      </div>
+      <table id="tabela" class="display nowrap" style="width:100%">
+        <thead>
+          <tr>
+            <th>Conta</th>
+            <th>NomeEmpresa</th>
+            <th>CNPJ</th>
+            <th>QtdEmitidos</th>
+            <th>ValorEmitidos</th>
+            <th>QtdLiquidados</th>
+            <th>ValorLiquidados</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <small>Fonte: Planilha Cobeb (Jan–Ago/2025). Padrão de colunas: <code>Conta, NomeEmpresa, CNPJ, QtdEmitidos, ValorEmitidos, QtdLiquidados, ValorLiquidados</code>.</small>
+  </footer>
+
+  <!-- JS libs -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.datatables.net/v/dt/dt-2.1.8/b-3.2.0/b-html5-3.2.0/b-print-3.2.0/r-3.0.3/datatables.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+
+  <!-- SheetJS para Excel -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <!-- App -->
+  <script src="js/app.js"></script>
+</body>
+</html>
